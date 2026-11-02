@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class LauncherTests(unittest.TestCase):
-    def run_launcher(self, *args, arch="aarch64"):
+    def run_launcher(self, *args, arch="aarch64", extra_env=None):
         with tempfile.TemporaryDirectory(prefix="builder test ") as tmp:
             tmp = Path(tmp)
             docker = tmp / "docker"
@@ -29,6 +29,8 @@ class LauncherTests(unittest.TestCase):
                        DOCKER_LOG=str(log), DOCKER_ARCH=arch)
             env.pop("VIAM_DEFAULTS", None)
             env.pop("OPI_PASSWORD", None)
+            env.pop("VIAM_CONFIG", None)
+            env.update(extra_env or {})
             result = subprocess.run(["bash", str(ROOT / "build.sh"), *args],
                                     cwd=tmp, env=env, capture_output=True, text=True)
             calls = [json.loads(line) for line in log.read_text().splitlines()] if log.exists() else []
@@ -63,6 +65,15 @@ class LauncherTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("linux/amd64", calls[-1])
         self.assertFalse(any("--privileged" in c or c[0] == "build" for c in calls))
+
+    def test_characterize_explicit_viam_config_is_not_forwarded(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = Path(tmp) / "viam.json"
+            config.write_text('{"cloud": {}}')
+            result, calls = self.run_launcher("image", extra_env={"VIAM_CONFIG": str(config)})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(any("VIAM_CONFIG=" in arg for call in calls for arg in call))
+        self.assertFalse(any(str(config) in arg for call in calls for arg in call))
 
     def test_invalid_step_exits_before_running_docker(self):
         result, calls = self.run_launcher("invalid")
