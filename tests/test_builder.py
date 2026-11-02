@@ -94,6 +94,8 @@ class PayloadTests(unittest.TestCase):
         cloud = json.loads((ROOT / "rootfs/etc/viam.json.example").read_text())["cloud"]
         self.assertTrue(cloud["id"].startswith("REPLACE_WITH_"))
         self.assertTrue(cloud["secret"].startswith("REPLACE_WITH_"))
+        self.assertTrue(cloud["api_key"]["id"].startswith("REPLACE_WITH_"))
+        self.assertTrue(cloud["api_key"]["key"].startswith("REPLACE_WITH_"))
         self.assertEqual(cloud["app_address"], "https://app.viam.com:443")
         self.assertFalse((ROOT / "rootfs/etc/viam.json").exists())
 

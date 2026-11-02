@@ -71,24 +71,43 @@ Armbian expands the root filesystem to fill the card on first boot.
 ## Connect the demo to Viam
 
 **Viam agent and server are already installed in the SD-card image.** The image
-also includes a placeholder configuration at `/etc/viam.json.example`:
+includes a **machine cloud credentials** template at
+[`/etc/viam.json.example`](rootfs/etc/viam.json.example). It shows all the fields
+in the cloud credentials document, with placeholders instead of real credentials:
 
 ```json
 {
   "cloud": {
+    "api_key": {
+      "id": "REPLACE_WITH_CLOUD_API_KEY_ID",
+      "key": "REPLACE_WITH_CLOUD_API_KEY"
+    },
+    "app_address": "https://app.viam.com:443",
     "id": "REPLACE_WITH_MACHINE_PART_ID",
-    "secret": "REPLACE_WITH_MACHINE_PART_SECRET",
-    "app_address": "https://app.viam.com:443"
+    "secret": "REPLACE_WITH_MACHINE_PART_SECRET"
   }
 }
 ```
+
+| Field | What to put here |
+| --- | --- |
+| `cloud.api_key.id` | The API key ID from the machine cloud credentials. This identifies the key, not the machine part. |
+| `cloud.api_key.key` | The secret API key value paired with that API key ID. |
+| `cloud.app_address` | The Viam cloud endpoint, normally `https://app.viam.com:443`. |
+| `cloud.id` | The machine **part ID** from the cloud credentials. |
+| `cloud.secret` | The machine part's secret from the cloud credentials. |
+
+Copy the complete **machine cloud credentials** JSON supplied by Viam, preserving
+its fields. An SDK connection example is a different document and does not replace
+this configuration. The template shows both `api_key` and `secret` so the full
+cloud credentials format is visible.
 
 To bring your Orange Pi online in Viam:
 
 1. Create or choose a machine in [the Viam app](https://app.viam.com/). Follow
    [Viam's machine setup instructions](https://docs.viam.com/set-up-a-machine/)
-   to obtain its **machine cloud credentials**. These are specific to that
-   machine part; they are not the API key used by an SDK client.
+   to obtain its **machine cloud credentials** for the machine part you want
+   this Orange Pi to connect as.
 2. On the Orange Pi, make a private working copy of the example and edit it:
 
    ```sh
@@ -96,8 +115,8 @@ To bring your Orange Pi online in Viam:
    sudoedit /etc/viam.json
    ```
 
-   Replace both `REPLACE_WITH_...` values with the machine part ID and secret,
-   or replace the entire file with the machine cloud credentials JSON from Viam.
+   Replace every `REPLACE_WITH_...` value using the field guide above, or paste
+   the complete machine cloud credentials JSON from Viam into this file.
    If this Pi already has `/etc/viam.json`, edit that file instead of copying over it.
 3. Start the configured machine and check its logs:
 
