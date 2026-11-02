@@ -1,0 +1,3 @@
+# Let the opi user reach the NPU (vendor kernel exposes it as a DRM render node) without sudo.
+SUBSYSTEM=="drm", KERNEL=="renderD*", MODE="0666"
+KERNEL=="rknpu*", MODE="0666"
