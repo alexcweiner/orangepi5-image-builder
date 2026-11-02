@@ -16,6 +16,7 @@ MODELS=$OUT/models
 WORK=${WORK_DIR:-/tmp/opi-work}
 OPI_PASSWORD=${OPI_PASSWORD:-orangepi}
 VIAM_DEFAULTS=${VIAM_DEFAULTS:-$HERE/viam-defaults.json}
+VIAM_CONFIG=${VIAM_CONFIG:-}
 
 log() { printf '\n==> %s\n' "$*"; }
 die() { echo "error: $*" >&2; exit 1; }
@@ -33,6 +34,9 @@ if [[ $(uname -m) != aarch64 ]]; then
     || die "no arm64 binfmt handler; run: docker run --privileged --rm tonistiigi/binfmt --install arm64"
 fi
 [[ -f $VIAM_DEFAULTS ]] || die "missing $VIAM_DEFAULTS"
+if [[ -n $VIAM_CONFIG ]]; then
+  python3 "$HERE/viam-config.py" validate "$VIAM_CONFIG"
+fi
 
 fetch() {
   local url=$1 dest=$2 sha=${3:-}
@@ -76,6 +80,7 @@ fetch "$VIAM_PREINSTALL_URL" "$WORK/preinstall.sh"
 IMG=$WORK/$IMAGE_NAME.img
 log "Unpacking $ARMBIAN_IMAGE"
 xz -dc "$CACHE/$ARMBIAN_IMAGE" >"$IMG"
+if [[ -n $VIAM_CONFIG ]]; then chmod 0600 "$IMG"; fi
 
 log "Growing root partition by ${EXTRA_IMAGE_MB} MiB"
 grow_last_partition "$IMG" "$EXTRA_IMAGE_MB"
@@ -127,11 +132,15 @@ if [[ -n $RESOLV_BACKUP ]]; then mv "$RESOLV_BACKUP" "$MNT/etc/resolv.conf"; fi
 rm -rf "$BUILD"
 
 log "Installing viam-agent (preinstall.sh) and viam-server"
-# preinstall.sh asks to confirm, then for an optional viam.json path. Credentials are never baked in.
+# Install the generic agent first, then optionally add the explicitly supplied credentials.
 (cd "$WORK" && printf 'y\n\n' | VIAM_AGENT_PATH="$WORK/viam-agent" DEFAULTS_PATH="$VIAM_DEFAULTS" sh ./preinstall.sh "$MNT")
 [[ -L $MNT/opt/viam/bin/viam-agent && -f $MNT/usr/local/lib/systemd/system/viam-agent.service ]] \
   || die "viam-agent preinstall did not land in the rootfs"
-[[ ! -e $MNT/etc/viam.json ]] || die "refusing to ship /etc/viam.json"
+[[ ! -e $MNT/etc/viam.json ]] || die "supply credentials through VIAM_CONFIG, not the rootfs overlay"
+if [[ -n $VIAM_CONFIG ]]; then
+  log "Installing supplied Viam machine cloud credentials"
+  python3 "$HERE/viam-config.py" install "$VIAM_CONFIG" "$MNT/etc/viam.json"
+fi
 install -m 0755 "$WORK/viam-server" "$MNT/opt/viam/cache/viam-server-factory-aarch64"
 ln -sfn /opt/viam/cache/viam-server-factory-aarch64 "$MNT/opt/viam/bin/viam-server"
 
@@ -144,6 +153,8 @@ shrink_to_filesystem "$IMG" "$PART" "$LOOP" 512 || die "shrinking the image fail
 LOOP=
 
 log "Compressing"
+# A configured image contains machine credentials; restrict the output artifact too.
+if [[ -n $VIAM_CONFIG ]]; then umask 077; fi
 rm -f "$OUT/$IMAGE_NAME.img.xz"
 xz -T0 -6 -c "$IMG" >"$OUT/$IMAGE_NAME.img.xz"
 (cd "$OUT" && sha256sum "$IMAGE_NAME.img.xz" >"$IMAGE_NAME.img.xz.sha256")

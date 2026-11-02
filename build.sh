@@ -3,12 +3,21 @@
 #   ./build.sh          convert the NPU models, then build the image
 #   ./build.sh models   only convert the NPU models (native-arch Linux container; rknn-toolkit2 ships x86_64 and arm64)
 #   ./build.sh image    only build the image (needs out/models from a previous run)
-# Env: OPI_PASSWORD (default orangepi), VIAM_DEFAULTS (path inside the repo to a viam-defaults.json).
+# Env: OPI_PASSWORD, VIAM_DEFAULTS, VIAM_CONFIG (default: local viam.json if present).
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")" && pwd)
 STEP=${1:-all}
 HOST_IDS=(-e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)")
+VIAM_CONFIG_PATH=
+
+prepare_config() {
+  local config=${VIAM_CONFIG:-$ROOT/viam.json}
+  if [[ -n ${VIAM_CONFIG:-} || -e $config ]]; then
+    [[ -f $config && -r $config ]] || { echo "error: VIAM_CONFIG must name a readable file" >&2; exit 1; }
+    VIAM_CONFIG_PATH=$(cd "$(dirname "$config")" && pwd)/$(basename "$config")
+  fi
+}
 
 docker_platform() {
   case $(docker info --format '{{.Architecture}}') in
@@ -35,12 +44,15 @@ image() {
   docker build -t orangepi5-image-builder "$ROOT/image"
   local env=(-e OPI_PASSWORD="${OPI_PASSWORD:-orangepi}")
   if [[ -n ${VIAM_DEFAULTS:-} ]]; then env+=(-e VIAM_DEFAULTS="/work/${VIAM_DEFAULTS#./}"); fi
+  if [[ -n $VIAM_CONFIG_PATH ]]; then
+    env+=(-e VIAM_CONFIG=/run/secrets/viam.json -v "$VIAM_CONFIG_PATH:/run/secrets/viam.json:ro")
+  fi
   docker run --rm --privileged -v /dev:/dev -v "$ROOT:/work" "${HOST_IDS[@]}" "${env[@]}" orangepi5-image-builder
 }
 
 case $STEP in
-  all) models; image ;;
+  all) prepare_config; models; image ;;
   models) models ;;
-  image) image ;;
+  image) prepare_config; image ;;
   *) echo "usage: $0 [all|models|image]" >&2; exit 1 ;;
 esac

@@ -4,5 +4,5 @@ __pycache__/
 *.pyc
 .venv/
 .DS_Store
-# Machine credentials belong on the Pi, never in this public repository.
+# Local build-time machine credentials must never enter this public repository.
 viam.json

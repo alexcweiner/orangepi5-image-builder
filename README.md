@@ -5,8 +5,8 @@ The output is `out/orangepi5-viam-npu.img.xz` and its SHA-256 checksum.
 
 This is the standalone image-building portion of a robot project. It includes the
 OS setup, Viam installation, and NPU model tools. The robot application, arm driver,
-dashboard, calibration data, and robot services are excluded. No Viam credentials
-are included. The image does not start a camera loop or inference server.
+dashboard, calibration data, and robot services are excluded. Viam credentials
+are supplied locally when you want the card to connect on first boot. The image does not start a camera loop or inference server.
 
 ## What goes on the card
 
@@ -33,8 +33,35 @@ and environments that disallow privileged containers are not supported.
 ```sh
 git clone https://github.com/alexcweiner/orangepi5-image-builder.git
 cd orangepi5-image-builder
+cp rootfs/etc/viam.json.example viam.json
+chmod 600 viam.json
+```
+
+Create the machine on [Viam's platform](https://app.viam.com/) first. Open the local
+`viam.json` in your editor and replace its contents with the complete **machine
+cloud credentials** JSON from Viam (the fields are explained below). Then build:
+
+```sh
 OPI_PASSWORD='choose-your-own-password' ./build.sh
 ```
+
+`build.sh` automatically includes `viam.json` from the project root when present.
+It is ignored by Git. To use a file elsewhere, run:
+
+```sh
+VIAM_CONFIG=/path/to/viam.json OPI_PASSWORD='choose-your-own-password' ./build.sh
+```
+
+The credentials file is mounted read-only into the running builder, validated,
+and installed as root-owned `/etc/viam.json` with mode `0600`. It is not copied
+into the Docker builder image or printed in the build logs. A missing explicit
+file, invalid JSON, incomplete cloud credentials, or unchanged template placeholders
+stops the build. JSON validation happens before disk-image downloads and modification.
+
+The resulting `.img.xz` **contains this machine's credentials**. Keep that image
+private and use it for the intended machine. To build a generic shareable image,
+leave out the local `viam.json` and do not set `VIAM_CONFIG`; the example remains
+on the card for later setup.
 
 The first build downloads several large model files and compiles tools. Downloads
 are reused from `cache/`, and converted models are reused from `out/models/`.
@@ -63,8 +90,11 @@ Linux users can use `sha256sum -c` instead of `shasum -a 256 -c`.
    Raspberry Pi Imager or balenaEtcher. Flashing erases the selected card.
 2. Insert it into the Orange Pi and boot with Ethernet connected. The original
    Orange Pi 5 has no onboard Wi-Fi; Viam Wi-Fi/Bluetooth provisioning is disabled.
-3. Connect with `ssh opi@orangepi5.local`, using the password chosen at build time.
-   Use the board's DHCP address if mDNS does not resolve.
+3. If you supplied `viam.json` at build time, Viam agent starts automatically and
+   uses those credentials to connect. Check that the machine appears **Live** in
+   the Viam app once the Pi has internet access. No SSH configuration step is needed.
+   SSH is available at `opi@orangepi5.local` for troubleshooting, using the password
+   chosen at build time; use the DHCP address if mDNS does not resolve.
 
 Armbian expands the root filesystem to fill the card on first boot.
 
@@ -102,7 +132,12 @@ its fields. An SDK connection example is a different document and does not repla
 this configuration. The template shows both `api_key` and `secret` so the full
 cloud credentials format is visible.
 
-To bring your Orange Pi online in Viam:
+For the recommended **configure before building** workflow, copy the complete
+machine cloud credentials into the local `viam.json`, run `./build.sh`, then flash
+and boot the card. Configure your demo components and services in the Viam app.
+
+If you built a generic image without credentials, you can instead configure it
+**after flashing**:
 
 1. Create or choose a machine in [the Viam app](https://app.viam.com/). Follow
    [Viam's machine setup instructions](https://docs.viam.com/set-up-a-machine/)
@@ -128,10 +163,10 @@ To bring your Orange Pi online in Viam:
 4. Check that the machine appears **Live** in the Viam app. Configure the
    components and services you want to demonstrate there.
 
-The placeholder is included as an **example**, so Viam does not try to authenticate
-with made-up credentials on first boot. Real credentials are added on the Pi after
-flashing, and stay out of the public repository and shared card image. You do not
-need to rebuild the image to connect a machine.
+The on-card placeholder remains an inactive **example**. A preconfigured build
+installs your separate local credentials as the active `/etc/viam.json`; a generic
+build leaves that file absent until you configure it. Real credentials stay out
+of the public repository in both workflows.
 
 ## Use the NPU tools
 
@@ -177,6 +212,9 @@ stereo calibration, YOLO postprocessing, and a custom Viam module are not bundle
   files here to copy them onto the card.
 - [`image/customize-rootfs.sh`](image/customize-rootfs.sh) installs packages and
   compiles the command-line tools inside the ARM64 filesystem.
+- `VIAM_CONFIG` selects the local machine cloud credentials file; by default the
+  launcher uses `viam.json` at the project root if present. This is separate from
+  provisioning defaults.
 - [`image/viam-defaults.json`](image/viam-defaults.json) contains generic Viam
   provisioning defaults. To use a local replacement, place it inside this checkout
   and run `VIAM_DEFAULTS=my-defaults.json ./build.sh image`. Do not commit credentials.
@@ -193,6 +231,7 @@ build.sh                   Host entry point: models, image, or both
 image/Dockerfile           Ubuntu build environment
 image/build-image.sh       Download, mount, customize, shrink, compress
 image/partition.sh         GPT/ext4 grow and shrink helpers
+image/viam-config.py       Validate and privately install supplied cloud credentials
 image/convert-models.sh    RK3588 model conversion
 image/*_rknn.py            Conversion helpers
 image/fastsam_onnx.py      FastSAM ONNX export helper

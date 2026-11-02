@@ -6,7 +6,7 @@ FROM ubuntu:24.04
 
 RUN apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-      ca-certificates curl xz-utils parted gdisk e2fsprogs util-linux dosfstools rsync file \
+      ca-certificates curl xz-utils parted gdisk e2fsprogs util-linux dosfstools rsync file python3 \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /work
