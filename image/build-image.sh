@@ -66,7 +66,6 @@ fetch "https://huggingface.co/$VLM_HF_REPO/resolve/$VLM_HF_REV/$VLM_LLM_FILE" "$
 fetch "https://huggingface.co/$WRITER_HF_REPO/resolve/$WRITER_HF_REV/$WRITER_HF_PATH" "$CACHE/$WRITER_FILE" "$WRITER_SHA256"
 fetch "$RKNNRT_URL" "$CACHE/librknnrt-$RKNN_VERSION.so"
 fetch "https://codeload.github.com/$VLM_SRC_REPO/tar.gz/$VLM_SRC_REF" "$CACHE/vlm-src-$VLM_SRC_REF.tar.gz"
-fetch "https://raw.githubusercontent.com/$REBOT_REPO/$REBOT_REF/$REBOT_URDF" "$CACHE/rebot-rs-$REBOT_REF.urdf" "$REBOT_URDF_SHA256"
 
 log "Downloading current stable viam-agent and viam-server"
 rm -f "$WORK/viam-agent" "$WORK/viam-server" "$WORK/preinstall.sh"
@@ -88,14 +87,12 @@ mount "$LOOP" "$MNT"
 [[ -x $MNT/bin/bash && -e $MNT/lib/ld-linux-aarch64.so.1 ]] || die "partition $PART is not an arm64 rootfs"
 
 log "Staging files"
-rsync -a --chown=root:root --chmod=Du=rwx,Dgo=rx --exclude=__pycache__ \
-  --exclude=libcheck.so --exclude=libcheck.dylib "$ROOT/rootfs/" "$MNT/"
-install -d "$MNT/opt/opi-bot/models" "$MNT/opt/opi-bot/share"
+rsync -a --chown=root:root --chmod=Du=rwx,Dgo=rx "$ROOT/rootfs/" "$MNT/"
+install -d "$MNT/opt/orangepi-npu/models" "$MNT/opt/orangepi-npu/share"
 install -m 0644 "$MODELS"/yolov8n.rknn "$MODELS"/yolov8n-pose.rknn "$MODELS"/yolov8n-seg.rknn \
-  "$MODELS"/fastsam-s.rknn "$MODELS"/lightstereo-s.rknn "$MNT/opt/opi-bot/models/"
-install -m 0644 "$CACHE/$VLM_VISION_FILE" "$CACHE/$VLM_LLM_FILE" "$CACHE/$WRITER_FILE" "$MNT/opt/opi-bot/models/"
-install -m 0644 "$MODELS/bus.jpg" "$MNT/opt/opi-bot/share/bus.jpg"
-install -m 0644 "$CACHE/rebot-rs-$REBOT_REF.urdf" "$MNT/opt/opi-bot/share/rebot_b601_rs.urdf"
+  "$MODELS"/fastsam-s.rknn "$MODELS"/lightstereo-s.rknn "$MNT/opt/orangepi-npu/models/"
+install -m 0644 "$CACHE/$VLM_VISION_FILE" "$CACHE/$VLM_LLM_FILE" "$CACHE/$WRITER_FILE" "$MNT/opt/orangepi-npu/models/"
+install -m 0644 "$MODELS/bus.jpg" "$MNT/opt/orangepi-npu/share/bus.jpg"
 
 BUILD=$MNT/tmp/opi-build
 rm -rf "$BUILD"

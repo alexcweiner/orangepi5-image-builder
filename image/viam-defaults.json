@@ -1,6 +1,6 @@
 {
   "network_configuration": {
-    "manufacturer": "opi-bot",
+    "manufacturer": "orangepi5-image-builder",
     "model": "orangepi5-npu",
     "disable_wifi_provisioning": true,
     "disable_bt_provisioning": true

@@ -1,7 +1,7 @@
 // Non-interactive entry point for the InternVL RK3588 demo: one image + one prompt in, one caption out.
 // Replaces the upstream interactive src/main.cpp at build time.
 //
-// With --serve it loads the model once and answers requests on stdin until stdin closes (opi-vlm runs it):
+// With --serve it loads the model once and answers requests on stdin until stdin closes (for command-line clients):
 //   request:  <image path>\t<prompt>\n
 //   reply:    ===OPI-SERVE=== OK <caption>\n   or   ===OPI-SERVE=== ERR <reason>\n
 // Prompts and captions escape backslash, newline and tab as \\, \n and \t so each stays on one line.

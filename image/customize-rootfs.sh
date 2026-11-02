@@ -20,8 +20,7 @@ log "Installing packages"
 apt-get update
 apt-get install -y --no-install-recommends \
   network-manager bluez avahi-daemon libnss-mdns openssh-server sudo curl ca-certificates xz-utils \
-  python3 v4l-utils libgomp1 build-essential cmake pkg-config libopencv-dev can-utils git poppler-utils \
-  chromium-headless-shell chromium-sandbox
+  python3 v4l-utils libgomp1 build-essential cmake pkg-config libopencv-dev git
 
 log "Networking: NetworkManager owns every interface (viam-agent requires it)"
 if [[ -d /etc/netplan ]]; then
@@ -53,32 +52,24 @@ install -m 0644 "$B/vlm/aarch64/library/librkllmrt.so" /usr/lib/librkllmrt.so
 install -m 0644 "$B"/vlm/aarch64/include/*.h /usr/local/include/
 ldconfig
 
-log "Building the arm collision checker"
-g++ -O3 -std=c++17 -fPIC -shared -o /opt/opi-bot/lib/opibot/libcheck.so /opt/opi-bot/lib/opibot/check.cpp
-
 log "Building the InternVL describe binary"
 cmake -S "$B/vlm" -B "$B/vlm/build" -DRK_LIB_PATH=/usr/lib -DCMAKE_BUILD_TYPE=Release
 cmake --build "$B/vlm/build" -j"$(nproc)"
 # Upstream CMakeLists sets a relative EXECUTABLE_OUTPUT_PATH, so locate the binary instead of assuming it.
 vlm_bin=$(find "$B/vlm" -type f -name VLM_NPU -perm -u+x | head -n1)
 [[ -n $vlm_bin ]] || { echo "VLM_NPU was not built" >&2; exit 1; }
-install -D -m 0755 "$vlm_bin" /opt/opi-bot/bin/vlm-describe
+install -D -m 0755 "$vlm_bin" /opt/orangepi-npu/bin/vlm-describe
 
-log "Building llm-ask, the Project tab's text writer"
-g++ -O2 -std=c++17 -o /opt/opi-bot/bin/llm-ask "$B/llm/llm_ask.cpp" -lrkllmrt
+log "Building the llm-ask text-model tool"
+g++ -O2 -std=c++17 -o /opt/orangepi-npu/bin/llm-ask "$B/llm/llm_ask.cpp" -lrkllmrt
 
-log "Python $OPI_PYTHON venv for the NPU tools and the Viam module"
+log "Python $OPI_PYTHON venv for NPU tools"
 curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin UV_NO_MODIFY_PATH=1 sh
-export UV_PYTHON_INSTALL_DIR=/opt/opi-bot/python UV_CACHE_DIR=/tmp/uv-cache UV_PYTHON_PREFERENCE=only-managed
-uv venv --python "$OPI_PYTHON" /opt/opi-bot/venv
+export UV_PYTHON_INSTALL_DIR=/opt/orangepi-npu/python UV_CACHE_DIR=/tmp/uv-cache UV_PYTHON_PREFERENCE=only-managed
+uv venv --python "$OPI_PYTHON" /opt/orangepi-npu/venv
 # shellcheck disable=SC2086
-uv pip install --python /opt/opi-bot/venv/bin/python $OPI_PIP_PACKAGES
+uv pip install --python /opt/orangepi-npu/venv/bin/python $OPI_PIP_PACKAGES
 rm -rf /tmp/uv-cache
-
-log "opi-bot services"
-chmod 0755 /opt/opi-bot/bin/* /opt/opi-bot/viam-gateway/run.sh
-systemctl enable opi-develop-activate.service npu-vision.service opi-map-server.service opi-vlm.service opi-bot-core.service opi-project.timer
-mkdir -p /etc/opi-bot
 
 apt-get clean
 rm -rf /var/lib/apt/lists/*

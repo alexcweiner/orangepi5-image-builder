@@ -32,10 +32,10 @@ image() {
   if [[ $(docker_platform) != linux/arm64 ]]; then
     docker run --privileged --rm tonistiigi/binfmt --install arm64 >/dev/null
   fi
-  docker build -t opi-image-builder "$ROOT/image"
+  docker build -t orangepi5-image-builder "$ROOT/image"
   local env=(-e OPI_PASSWORD="${OPI_PASSWORD:-orangepi}")
   if [[ -n ${VIAM_DEFAULTS:-} ]]; then env+=(-e VIAM_DEFAULTS="/work/${VIAM_DEFAULTS#./}"); fi
-  docker run --rm --privileged -v /dev:/dev -v "$ROOT:/work" "${HOST_IDS[@]}" "${env[@]}" opi-image-builder
+  docker run --rm --privileged -v /dev:/dev -v "$ROOT:/work" "${HOST_IDS[@]}" "${env[@]}" orangepi5-image-builder
 }
 
 case $STEP in

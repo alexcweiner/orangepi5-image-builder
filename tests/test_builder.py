@@ -72,12 +72,22 @@ class LauncherTests(unittest.TestCase):
 
 
 class PayloadTests(unittest.TestCase):
-    def test_characterize_original_robot_payload_dependencies(self):
+    def test_standalone_image_has_no_robot_runtime_dependencies(self):
         customize = (ROOT / "image/customize-rootfs.sh").read_text()
-        self.assertIn("/opt/opi-bot/lib/opibot/check.cpp", customize)
-        self.assertIn("opi-bot-core.service", customize)
         build = (ROOT / "image/build-image.sh").read_text()
         self.assertIn('"$ROOT/rootfs/"', build)
+        self.assertIn("/opt/orangepi-npu/bin/vlm-describe", customize)
+        self.assertIn("/opt/orangepi-npu/models", build)
+        for text in (customize, build, (ROOT / "image/config.env").read_text()):
+            for forbidden in ("/opt/opi-bot", "opibot", "REBOT_", "motorbridge",
+                              "opi-bot-core.service", "viam-gateway", "dashboard"):
+                self.assertNotIn(forbidden, text)
+
+    def test_rootfs_contains_only_generic_npu_setup(self):
+        files = {p.relative_to(ROOT / "rootfs").as_posix()
+                 for p in (ROOT / "rootfs").rglob("*") if p.is_file()}
+        self.assertEqual(files, {"etc/udev/rules.d/99-rknpu.rules",
+                                 "etc/profile.d/orangepi-npu.sh"})
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-// Text in, text out on the RK3588 NPU with a Qwen2.5 Instruct .rkllm: the writer for the dashboard's Project tab.
+// Text in, text out on the RK3588 NPU with a Qwen2.5 Instruct .rkllm: a standalone command-line tool.
 //
 //   llm-ask model.rkllm [max_new_tokens] [context_len]
 //
@@ -66,7 +66,7 @@ int main(int argc, char** argv)
     param.repeat_penalty = 1.1f;
     param.skip_special_token = true;
     param.is_async = false;
-    // The big cores; the little ones keep the camera loop and the map server responsive.
+    // Use the big cores for inference.
     param.extend_param.base_domain_id = 0;
     param.extend_param.enabled_cpus_num = 4;
     param.extend_param.enabled_cpus_mask = (1u << 4) | (1u << 5) | (1u << 6) | (1u << 7);
