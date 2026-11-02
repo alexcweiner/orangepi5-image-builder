@@ -66,8 +66,53 @@ Linux users can use `sha256sum -c` instead of `shasum -a 256 -c`.
 3. Connect with `ssh opi@orangepi5.local`, using the password chosen at build time.
    Use the board's DHCP address if mDNS does not resolve.
 
-Armbian expands the root filesystem to fill the card on first boot. Configure
-the machine in Viam separately; the build deliberately excludes `/etc/viam.json`.
+Armbian expands the root filesystem to fill the card on first boot.
+
+## Connect the demo to Viam
+
+**Viam agent and server are already installed in the SD-card image.** The image
+also includes a placeholder configuration at `/etc/viam.json.example`:
+
+```json
+{
+  "cloud": {
+    "id": "REPLACE_WITH_MACHINE_PART_ID",
+    "secret": "REPLACE_WITH_MACHINE_PART_SECRET",
+    "app_address": "https://app.viam.com:443"
+  }
+}
+```
+
+To bring your Orange Pi online in Viam:
+
+1. Create or choose a machine in [the Viam app](https://app.viam.com/). Follow
+   [Viam's machine setup instructions](https://docs.viam.com/set-up-a-machine/)
+   to obtain its **machine cloud credentials**. These are specific to that
+   machine part; they are not the API key used by an SDK client.
+2. On the Orange Pi, make a private working copy of the example and edit it:
+
+   ```sh
+   sudo install -m 0600 /etc/viam.json.example /etc/viam.json
+   sudoedit /etc/viam.json
+   ```
+
+   Replace both `REPLACE_WITH_...` values with the machine part ID and secret,
+   or replace the entire file with the machine cloud credentials JSON from Viam.
+   If this Pi already has `/etc/viam.json`, edit that file instead of copying over it.
+3. Start the configured machine and check its logs:
+
+   ```sh
+   sudo systemctl restart viam-agent
+   sudo journalctl -u viam-agent -n 50 --no-pager
+   ```
+
+4. Check that the machine appears **Live** in the Viam app. Configure the
+   components and services you want to demonstrate there.
+
+The placeholder is included as an **example**, so Viam does not try to authenticate
+with made-up credentials on first boot. Real credentials are added on the Pi after
+flashing, and stay out of the public repository and shared card image. You do not
+need to rebuild the image to connect a machine.
 
 ## Use the NPU tools
 
@@ -108,8 +153,9 @@ stereo calibration, YOLO postprocessing, and a custom Viam module are not bundle
 - [`image/config.env`](image/config.env) sets the base image URL/checksum, model
   revisions, NPU runtime version, hostname, and username. Changing board models
   requires checking kernel, NPU, and partition compatibility too.
-- [`rootfs/`](rootfs/) is a minimal filesystem overlay containing NPU permissions
-  and a shell PATH entry. Put your own non-secret files here to copy them onto the card.
+- [`rootfs/`](rootfs/) is a minimal filesystem overlay containing NPU permissions,
+  a shell PATH entry, and the Viam configuration example. Put your own non-secret
+  files here to copy them onto the card.
 - [`image/customize-rootfs.sh`](image/customize-rootfs.sh) installs packages and
   compiles the command-line tools inside the ARM64 filesystem.
 - [`image/viam-defaults.json`](image/viam-defaults.json) contains generic Viam
@@ -132,7 +178,7 @@ image/convert-models.sh    RK3588 model conversion
 image/*_rknn.py            Conversion helpers
 image/fastsam_onnx.py      FastSAM ONNX export helper
 image/vlm/, image/llm/     Standalone C++ inference entry points
-rootfs/                   Minimal NPU setup overlay
+rootfs/                   NPU setup and Viam configuration example
 tests/                    Launcher, payload, and partition checks
 ```
 

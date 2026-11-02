@@ -1,0 +1,7 @@
+{
+  "cloud": {
+    "id": "REPLACE_WITH_MACHINE_PART_ID",
+    "secret": "REPLACE_WITH_MACHINE_PART_SECRET",
+    "app_address": "https://app.viam.com:443"
+  }
+}

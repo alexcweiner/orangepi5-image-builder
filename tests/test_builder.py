@@ -83,11 +83,19 @@ class PayloadTests(unittest.TestCase):
                               "opi-bot-core.service", "viam-gateway", "dashboard"):
                 self.assertNotIn(forbidden, text)
 
-    def test_rootfs_contains_only_generic_npu_setup(self):
+    def test_rootfs_contains_only_generic_setup_and_viam_example(self):
         files = {p.relative_to(ROOT / "rootfs").as_posix()
                  for p in (ROOT / "rootfs").rglob("*") if p.is_file()}
         self.assertEqual(files, {"etc/udev/rules.d/99-rknpu.rules",
-                                 "etc/profile.d/orangepi-npu.sh"})
+                                 "etc/profile.d/orangepi-npu.sh",
+                                 "etc/viam.json.example"})
+
+    def test_viam_example_has_only_placeholders_and_is_not_active(self):
+        cloud = json.loads((ROOT / "rootfs/etc/viam.json.example").read_text())["cloud"]
+        self.assertTrue(cloud["id"].startswith("REPLACE_WITH_"))
+        self.assertTrue(cloud["secret"].startswith("REPLACE_WITH_"))
+        self.assertEqual(cloud["app_address"], "https://app.viam.com:443")
+        self.assertFalse((ROOT / "rootfs/etc/viam.json").exists())
 
 
 if __name__ == "__main__":
